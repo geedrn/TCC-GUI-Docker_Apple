@@ -1,0 +1,30 @@
+Package: TCC-GUI
+Type: Package
+Version: 1.0
+Date: 2024-03-07
+Title: TCC-GUI for R
+Author: Ryo Niwa
+Maintainer: Ryo Niwa <ryo.niwa@cira.kyoto-u.ac.jp>
+Description: A graphical user interface for TCC package.
+License: GPL (>= 2)
+Imports: 
+    plotly,
+    knitr,
+    DT,
+    dplyr,
+    rmarkdown,
+    shiny,
+    shinydashboard,
+    heatmaply,
+    data.table,
+    RColorBrewer,
+    markdown,
+    utils,
+    shinyWidgets,
+    tidyr,
+    cluster,
+    shinycssloaders,
+    shinyBS,
+    MASS
+Encoding: UTF-8
+LazyData: true

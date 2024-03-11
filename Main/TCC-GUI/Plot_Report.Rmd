@@ -1,0 +1,367 @@
+---
+title: "TCC-GUI Analysis Report"
+output: html_document
+params:
+  CountData: NA
+  groupList: NA
+  result: NA
+  norData: NA
+  zeroValue: NA
+  sampleDistributionBar: NA
+  sampleDistributionDensity: NA
+  norSampleDistributionBar: NA
+  norSampleDistributionDensity: NA
+  MAPlotObject: NA
+  VolcanoPlotObject: NA
+  
+  mdsPlot: NULL
+  mdsPlotplot: NULL
+  
+  pcaParameter: NULL
+  screePlot: NULL
+  pca3d: NULL
+  pca2d: NULL
+  summaryPCA: NULL
+  
+  heatmapObject: NA
+  
+  expressionLevelBar: NULL
+  expressionLevelBox: NULL
+  
+  groupListConvert: NA
+  filterLowCount: NA
+  normMethod: NA
+  testMethod: NA
+  iteration: NA
+  fdr: NA
+  floorpdeg: NA
+  
+  tccObject: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, results='asis')
+library(plotly)
+library(knitr)
+library(DT)
+```
+
+If "Not available" is shown in the report, it means:  
+1. You seleted not to show this part in ouput option.  
+2. You haven't generate the plot in TCC-GUI. Only the plot was shown in TCC-GUI at least one time, it can be output to the report.  
+
+# Session infomation
+
+This report is generated at: 
+`r Sys.time()`  
+
+Size of original dataset:   
+`r nrow(params$CountData)` rows  
+`r ncol(params$CountData)` columns
+
+Number of group: 
+`r length(params$groupList)`  
+Detail of group information (Used columns):  
+```{r groupList}
+for(i in 1:length(params$groupList)){
+  group_name <- names(params$groupList)[i]
+  cat(paste0(group_name, ": ",
+             paste0(params$groupList[[i]], collapse = ", "), 
+             "  \n")
+      )
+}
+```
+
+Number of gene which expression level equal to zero in all sample: 
+`r params$zeroValue`  
+
+# 1. Exploratory Analysis
+
+## 1.4 Multidimensional Scaling
+
+```{r mds para}
+if(length(params$mdsPlot) > 0){
+mdsMain <- params$mdsPlot$params$mds
+mdsMethod <- params$mdsPlot$params$mdsMethod
+mdsDistMethod <- params$mdsPlot$params$mdsDistMethod
+
+mdsPara <- rbind(
+  c("mdsMain", "Main MDS method", mdsMain),
+  c("mdsMethod", "Correlation Coefficient", mdsMethod),
+  c("mdsDistMethod", "Distance Measure", mdsDistMethod)
+)
+colnames(mdsPara) <- c("Parameter", "Explanation", "Value")
+kable(mdsPara, caption = "Parameters setting of MDS")
+} else {
+  "Not available."
+}
+```
+
+```{r mds computation}
+if(length(params$mdsPlot) > 0){
+cat("```r
+library(dplyr)
+library(plotly)
+
+# Obtain dataset from TCC Object
+data <- tcc$count
+# Perform MDS computation\n")
+  
+if (mdsMain == "Nonmetric MDS") {
+  cat("library(MASS)\n")
+  mds_code <- sprintf('mds <- data.frame(isoMDS(dist(1 - cor(data, method = "%s"), method = "%s")))\n', mdsMethod, mdsDistMethod)
+} else {
+  mds_code <- sprintf('mds <- data.frame(cmdscale(dist(1 - cor(data, method = "%s"), method = "%s")))\n', mdsMethod, mdsDistMethod)
+}
+cat(mds_code)
+cat(sprintf('
+# Convert data.frame to plot
+mds$name <- rownames(mds)
+mdsG <- tcc$group
+mdsG$name <- rownames(mdsG)
+mdsJ <- left_join(mds, mdsG, by = "name")
+
+plot_ly(data = mdsJ,
+           x = mdsJ[, 1],
+           y = mdsJ[, 2],
+        type = "scatter",
+        mode = "text",
+        text =~ name,
+       color =~ group) %%>%%
+  layout(title = "%s Plot")
+```\n', mdsMain))
+params$mdsPlotplot
+} else {
+  cat("Not available.")
+}
+```
+
+## 1.5 Principal Components Analysis  
+
+The PCA parameters is shown as below:
+
+```{r pca para}
+if(length(params$pcaParameter) > 0){
+# Get parameters from TCC-GUI
+pcaTransform <- params$pcaParameter$pcaTransform
+pcaTopGene <- params$pcaParameter$pcaTopGene
+pcaCenter <- params$pcaParameter$pcaCenter
+pcaScale <- params$pcaParameter$pcaScale
+
+pcaPara <- rbind(
+  c("pcaTopGene", "Number of gene", pcaTopGene),
+  c("pcaTransform", "Log(x+1) transform", pcaTransform),
+  c("pcaCenter", "Center", pcaCenter),
+  c("pcaScale", "Scale", pcaScale)
+  )
+  colnames(pcaPara) <-
+  c("Parameter", "Explanation", "Value")
+  kable(pcaPara, caption = "Paramters setting of PCA.")
+} else {
+  cat("Not available")
+}
+```
+
+
+```{r pca computation}
+if(length(params$pcaParameter) > 0){
+cat("Using top N gene to perform PCA\n")
+cat("```r\n")
+cat("# Obtain dataset from TCC Object\n")
+cat("data <- tcc$count\n")
+
+# PCA processing
+if (pcaTransform == TRUE) {
+  cat("\n# Log transform dataset\n")
+  cat("data <- log1p(data)\n")
+}
+
+cat("\n# Perform PCA, Extract genes with none-zero variance\n")
+cat("data <- data[apply(data, 1, var) != 0, ]\n")
+
+if(!is.na(pcaTopGene) & pcaTopGene < nrow(params$tccObject$count)){
+  cat("data <- t(data[order(apply(data, 1, var), decreasing = TRUE)[1:", pcaTopGene, "], ])\n")
+}
+
+cat(paste0("data.pca <- prcomp(data[, apply(data, 2, var) != 0], center = ", 
+           pcaCenter,
+           ", scale. = ", 
+           pcaScale, ")\n"))
+cat("```\n")
+} else {
+  cat("")
+}
+```
+
+### 1.5.1 Summary Table of PCA
+
+```{r}
+if(length(params$summaryPCA) > 0){
+  params$summaryPCA
+} else {
+  "Not available"
+}
+```
+
+### 1.5.2 Scree plot  
+
+```{r}
+if(length(params$screePlot) > 0){
+  params$screePlot
+} else {
+  "Not available"
+}
+```
+
+### 1.5.3 3D  
+
+```{r}
+if(length(params$pca3d) > 0){
+  params$pca3d
+} else {
+  "Not available"
+}
+```
+
+### 1.5.4 2D  
+
+```{r}
+if(length(params$pca2d) > 0){
+  params$pca2d
+} else {
+  "Not available"
+}
+```
+
+# 2. TCC Computation
+
+This part is about TCC Computation processing.  
+TCC Parameters is shown as below. 
+
+```{r tcc parameters}
+tccPara <- rbind(
+  c("params\\$CountData", "Count data", class(params$CountData)),
+  c("params\\$groupListConvert", "List of group infomation", class(params$groupListConvert)),
+  c("params\\$filterLowCount", "Filter low count genes threshold", params$filterLowCount),
+  c("params\\$normMethod", "Normalization method", params$normMethod),
+  c("params\\$testMethod", "DEGs identify method", params$testMethod),
+  c("params\\$iteration", "Iteration", params$iteration),
+  c("params\\$fdr", "FDR", params$fdr),
+  c("params\\$floorpdeg", "Elimination of potential DEGs", params$floorpdeg)
+  )
+colnames(tccPara) <- c("Parameters", "Explanation", "Value / class")
+kable(tccPara, caption = "Paramters used in TCC computation.")
+```
+
+```{r show count data}
+kable(head(params$CountData, 10), caption = "First 10 row of original dataset.")
+```
+
+List of group infomation is shown as below:  
+
+```{r groupListConvert, results='markup'}
+params$groupListConvert
+```
+
+Computation code is shown as below.  
+
+(If you want to run this piece of code directly, loading data into your own R environment is necessary. Using `data <- data.table::fread(YOUR_FILE_PATH)` to replace `data <- params$CountData` is a highly efficiency way of reading row count text file. Next create a variable `data.cl` to save group information list.)  
+
+```{r tcc computation, echo=TRUE, eval=FALSE}
+library(TCC)
+# Dataset
+data <- params$CountData
+# Group infomation
+data.cl <- params$groupListConvert
+
+# Create TCC Object
+tcc <- new("TCC", data[data.cl != 0], data.cl[data.cl != 0])
+# Filter low count genes before calculation
+tcc <- filterLowCountGenes(tcc, low.count = params$filterLowCount)
+# Run TCC and calculate normalized factor
+tcc <- calcNormFactors(tcc, 
+                       norm.method = params$normMethod,
+                       test.method = params$testMethod,
+                       iteration = params$iteration,
+                       FDR = params$fdr,
+                       floorPDEG = params$floorpdeg)
+
+# Estimate DEGs
+tcc <- estimateDE(tcc,
+                  test.method = input$testMethod,
+                  FDR = input$fdr)
+
+# Get final result of TCC
+result <- getResult(tcc, sort = FALSE)
+norData <- tcc$getNormalizedData()
+```
+
+Here is a preview of your TCC results.  
+
+```{r tcc result}
+kable(head(params$result, 10), caption = "First 10 row of TCC result table")
+kable(head(params$norData, 10), caption = "First 10 row of normalized data")
+```
+
+
+## 3. MA Plot  
+
+```{r}
+if(length(params$MAPlotObject) > 0){
+  params$MAPlotObject
+} else {
+  "Not available"
+}
+```
+
+## 4. Volcano Plot 
+
+```{r}
+if(length(params$VolcanoPlotObject) > 0){
+  params$VolcanoPlotObject
+} else {
+  "Not available"
+}
+```
+
+## 6. Heatmap  
+
+```{r}
+if(length(params$heatmapObject) > 0){
+  params$heatmapObject
+} else {
+  "Not available"
+}
+```
+
+## 7. Expression Level  
+
+### Selected Genes
+
+```{r}
+if(length(params$expressionLevelBar) > 0){
+  params$expressionLevelBar
+} else {
+  "Not available"
+}
+```
+
+### Barplot  
+
+```{r}
+if(length(params$expressionLevelBar) > 0){
+  params$expressionLevelBar
+} else {
+  "Not available"
+}
+```
+
+### Boxplot  
+
+```{r}
+if(length(params$expressionLevelBox) > 0){
+  params$expressionLevelBox
+} else {
+  "Not available"
+}
+```
