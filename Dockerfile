@@ -1,4 +1,4 @@
-FROM rocker/rstudio:4.2.1
+FROM rocker/rstudio:4.3.1
 
 # Maintainer
 LABEL Maintainer="Ryo Niwa <ryo.niwa@cira.kyoto-u.ac.jp>"
