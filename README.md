@@ -47,13 +47,13 @@ cd TCC-GUI-Docker
 docker build . -t IMAGE_NAME
 ```
 #### EASY VERSION
-The image itself is publicly available too (https://hub.docker.com/r/geedrn/tcc). If you trust me, use this version.
+The image itself is publicly available too (https://hub.docker.com/r/sayaka0710/tcc). If you trust me, use this version.
 
 ```bash=
 docker run \
   --rm -e DISABLE_AUTH=true \
   -p 8787:8787 \
-  geedrn/tcc
+  sayaka0710/tcc
 ```
 
 This automatically finds the image in your local PC. If the docker does not find it, it pulls the image from the hub for your initial run. Once you close the terminal from the red botton, it also shut offs the docker container.
@@ -70,6 +70,8 @@ shiny::runApp(appDir = "TCC-GUI")
 
 If you are not familiar with this, you can also find TCC-GUI folder in the bottom right and open it. 
 Then find ui.R file and double click. This process pops up the window on the up left. Find Run App botton and push it!
+
+After finishing the analysis, Control+C wraps up everything. Confirm your docker container is shut down on app. 
 
 #### How to finish the analysis
 Close the terminal. Close the Docker hub app. If you are a mac user, you should find a Docker icon at the top of your screen. Click it and push Quit Docker Desktop. Otherwise Docker eats at least 4GB memory all the time. 
